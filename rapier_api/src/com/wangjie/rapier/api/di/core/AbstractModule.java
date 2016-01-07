@@ -5,5 +5,6 @@ package com.wangjie.rapier.api.di.core;
  * Email: tiantian.china.2@gmail.com
  * Date: 1/7/16.
  */
+@Deprecated
 public class AbstractModule {
 }

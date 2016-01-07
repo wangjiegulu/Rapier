@@ -1,7 +1,6 @@
 package com.wangjie.rapier.app.main.module;
 
 import android.content.Context;
-import com.wangjie.rapier.api.di.core.AbstractModule;
 import com.wangjie.rapier.app.RapierApplication;
 import com.wangjie.rapier.app.model.FooData;
 import com.wangjie.rapier.app.prefs.PrefsHelper;
@@ -14,7 +13,7 @@ import java.util.List;
  * Email: tiantian.china.2@gmail.com
  * Date: 1/7/16.
  */
-public class MainPresenterModule extends AbstractModule {
+public class MainPresenterModule{
     public PrefsHelper pickPrefsHelper() {
         PrefsHelper prefsHelper = new PrefsHelper();
         prefsHelper.prefs = RapierApplication.instance.getSharedPreferences("Prefs_Test_Rapier", Context.MODE_PRIVATE);

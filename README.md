@@ -1,7 +1,7 @@
 # Rapier
 Dependency injection Framework for Android. No reflection, Generate java code in compile time, and Inject everywhere.
 
-> __DO NOT use it in any production project until version 1.0 releases and publishes to maven.__
+> __DO NOT use it in any production project until version 1.0 releases and publishes to maven central.__
 
 - Special Module Class in `@Module` annotation, and inject objects use `@Inject` annotation.
 
@@ -25,10 +25,10 @@ public class MainActivity extends AppCompatActivity{
     }
 ```
 
-- Module which must be extends `AbstractModule`:
+- Module which will provider objects for injection:
 
 ```java
-public class MainModule extends AbstractModule{
+public class MainModule{
     private MainViewer mainViewer;
 
     public MainModule(MainViewer mainViewer) {
