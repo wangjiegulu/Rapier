@@ -21,6 +21,9 @@ import java.util.Date;
  * Date: 1/6/16.
  */
 public abstract class BaseAbstractProcessor extends AbstractProcessor {
+    public static final boolean LOG_CONTROL = false;
+    public static final boolean LOG_FILE = false;
+
     protected Elements elementUtils;
     protected Types typeUtils;
     protected Filer filer;
@@ -41,14 +44,24 @@ public abstract class BaseAbstractProcessor extends AbstractProcessor {
     }
 
     protected void loggerE(Throwable throwable) {
+        if(!LOG_CONTROL && !LOG_FILE){
+            return;
+        }
         logger("[ERROR]" + LogUtil.transformStackTrace(throwable));
     }
 
     protected void logger(String str) {
+        if(!LOG_CONTROL && !LOG_FILE){
+            return;
+        }
         String loggerDate = System.identityHashCode(this) + "...[" + LOGGER_DATE_FORMAT.format(new Date()) + "]";
         String log = loggerDate + ": " + str;
-        processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, log);
-        writeToDisk(log);
+        if(LOG_CONTROL){
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, log);
+        }
+        if(LOG_FILE){
+            writeToDisk(log);
+        }
     }
 
     private void writeToDisk(String log) {

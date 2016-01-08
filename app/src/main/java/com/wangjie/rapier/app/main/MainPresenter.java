@@ -4,6 +4,7 @@ import android.util.Log;
 import com.wangjie.rapier.api.di.annotation.RInject;
 import com.wangjie.rapier.api.di.annotation.RModule;
 import com.wangjie.rapier.api.di.core.RLazy;
+import com.wangjie.rapier.app.RapierApplication;
 import com.wangjie.rapier.app.main.module.MainPresenterModule;
 import com.wangjie.rapier.app.model.FooData;
 import com.wangjie.rapier.app.prefs.PrefsHelper;
@@ -27,11 +28,16 @@ public class MainPresenter implements IMainPresenter {
     @RInject
     List<FooData> testData;
 
+    @RInject
+    RapierApplication application;
+
     public MainPresenter(MainViewer viewer) {
         this.viewer = viewer;
         MainPresenter_Rapier.create().inject(new MainPresenterModule(), this);
 
         Log.i(TAG, "testData: " + testData);
+
+        Log.i(TAG, "application: " + application);
 
     }
 

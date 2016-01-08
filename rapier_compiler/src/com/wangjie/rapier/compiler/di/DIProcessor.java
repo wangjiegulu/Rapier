@@ -14,7 +14,9 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.MirroredTypeException;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import java.io.IOException;
 import java.util.*;
@@ -51,7 +53,8 @@ public class DIProcessor extends BaseAbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-
+        long start = System.currentTimeMillis();
+        logger("[process]annotations: " + Arrays.toString(annotations.toArray()) + ", roundEnv: " + roundEnv);
         try {
 
             // Get all elements that annotated with special annotation.
@@ -88,19 +91,24 @@ public class DIProcessor extends BaseAbstractProcessor {
                 }
             }
 
-            logger("clazzProcessMapper: \n" + clazzProcessMapper);
 
-            for (Map.Entry<String, DIClass> entry : clazzProcessMapper.entrySet()) {
-                try {
-                    entry.getValue().brewJava().writeTo(filer);
-                } catch (IOException e) {
-                    logger(e.getMessage());
+            if (roundEnv.processingOver()) {
+                logger("clazzProcessMapper: \n" + clazzProcessMapper);
+                for (Map.Entry<String, DIClass> entry : clazzProcessMapper.entrySet()) {
+                    try {
+                        entry.getValue().brewJava().writeTo(filer);
+                    } catch (IOException e) {
+                        logger(e.getMessage());
+                    }
                 }
             }
         } catch (Throwable throwable) {
             loggerE(throwable);
             throw throwable;
+        } finally {
+            logger("[process] tasks: " + (System.currentTimeMillis() - start) + "ms");
         }
+
         return true;
     }
 
@@ -122,7 +130,7 @@ public class DIProcessor extends BaseAbstractProcessor {
             if (fieldModeNameWithoutGeneric.equals(RLazy.class.getCanonicalName())) {
                 String realFieldClassName = fieldModeName.substring(fieldModeName.indexOf("<") + 1, fieldModeName.indexOf(">"));
                 field = DILazyField.create().setRealFieldClassName(realFieldClassName);
-                logger(">>>>>>>>realFieldClassName: " + realFieldClassName);
+//                logger(">>>>>>>>realFieldClassName: " + realFieldClassName);
             } else { // not RLazy
                 field = DINormalField.create();
             }
@@ -185,23 +193,35 @@ public class DIProcessor extends BaseAbstractProcessor {
         // set exceptInjectType to injectElement's injectElementQualifierName if @named annotation had not set.
         String injectEleQualifierName = null == namedOfFieldForInject ? exceptInjectType : namedOfFieldForInject.value();
 
-        for (Element methodEle : MoreElements.asType(moduleClassElement).getEnclosedElements()) {
-            if (ElementKind.METHOD != methodEle.getKind()) {
-                continue;
+        Element superElement = MoreElements.asType(moduleClassElement);
+        while (null != superElement && !superElement.toString().equals(Object.class.getCanonicalName())) {
+
+            for (Element methodEle : superElement.getEnclosedElements()) {
+                if (ElementKind.METHOD != methodEle.getKind()) {
+                    continue;
+                }
+
+                // Match the type of method in module as same as the type of injectElement.
+                String methodReturnType = MoreElements.asExecutable(methodEle).getReturnType().toString();
+                RNamed methodEleNamedAnno = methodEle.getAnnotation(RNamed.class);
+                String methodEleQualifierName = null == methodEleNamedAnno ? methodReturnType : methodEleNamedAnno.value();
+
+                if (methodReturnType.equals(exceptInjectType) // Same type
+                        &&
+                        methodEleQualifierName.equals(injectEleQualifierName) // Same named
+                        ) {
+                    resultMethodElementList.add(methodEle);
+                }
             }
 
-            // Match the type of method in module as same as the type of injectElement.
-            String methodReturnType = MoreElements.asExecutable(methodEle).getReturnType().toString();
-            RNamed methodEleNamedAnno = methodEle.getAnnotation(RNamed.class);
-            String methodEleQualifierName = null == methodEleNamedAnno ? methodReturnType : methodEleNamedAnno.value();
-
-            if (methodReturnType.equals(exceptInjectType) // Same type
-                    &&
-                    methodEleQualifierName.equals(injectEleQualifierName) // Same named
-                    ) {
-                resultMethodElementList.add(methodEle);
+            TypeMirror superTypeMirror = MoreElements.asType(superElement).getSuperclass();
+            if (superTypeMirror.getKind() != TypeKind.DECLARED) {
+                break;
             }
+            superElement = ((DeclaredType) superTypeMirror).asElement();
         }
+
+
         return resultMethodElementList;
     }
 

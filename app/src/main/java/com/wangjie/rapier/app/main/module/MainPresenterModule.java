@@ -13,7 +13,7 @@ import java.util.List;
  * Email: tiantian.china.2@gmail.com
  * Date: 1/7/16.
  */
-public class MainPresenterModule{
+public class MainPresenterModule extends ApplicationModule {
     public PrefsHelper pickPrefsHelper() {
         PrefsHelper prefsHelper = new PrefsHelper();
         prefsHelper.prefs = RapierApplication.instance.getSharedPreferences("Prefs_Test_Rapier", Context.MODE_PRIVATE);
