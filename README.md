@@ -3,16 +3,27 @@ Dependency injection Framework for Android. No reflection, Generate java code in
 
 > __DO NOT use it in any production project until version 1.0 releases and publishes to maven central.__
 
-- Special Module Class in `@Module` annotation, and inject objects use `@Inject` annotation.
+- Special Module Class in `@RModule` annotation, and inject objects use `@RInject` annotation.
 
 ```java
-@Module(moduleClazz = MainModule.class)
-public class MainActivity extends AppCompatActivity{
-    @Inject
+@RModule(moduleClazz = MainModule.class)
+public class MainActivity extends AppCompatActivity implements MainViewer, View.OnClickListener {
+    private static final String TAG = MainActivity.class.getSimpleName();
+
+    @RInject
     IMainPresenter presenter;
 
-    @Inject
-    FooData fooData;
+    @RInject
+    @RNamed(MainModule.FOO_DATA_A)
+    FooData fooDataA;
+
+    @RInject
+    @RNamed(MainModule.FOO_DATA_B)
+    FooData fooDataB;
+
+    @RInject
+//    @RNamed("error named")
+    FooData fooDataNoNamed;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -21,14 +32,21 @@ public class MainActivity extends AppCompatActivity{
 
         MainActivity_Rapier.create().inject(new MainModule(this), this);
 
-		fooData.getDataContent();
+        Log.i(TAG, "fooDataA: " + fooDataA);
+        Log.i(TAG, "fooDataB: " + fooDataB);
+        Log.i(TAG, "fooDataNoNamed: " + fooDataNoNamed);
+
     }
+}
 ```
 
 - Module which will provider objects for injection:
 
 ```java
 public class MainModule{
+    public static final String FOO_DATA_A = "FOO_DATA_A";
+    public static final String FOO_DATA_B = "FOO_DATA_B";
+
     private MainViewer mainViewer;
 
     public MainModule(MainViewer mainViewer) {
@@ -39,8 +57,18 @@ public class MainModule{
         return new MainPresenter(mainViewer);
     }
 
-    public FooData pickFooData(){
-        return new FooData(112358, "hello foo");
+    @RNamed(FOO_DATA_A)
+    public FooData pickFooDataA(){
+        return new FooData(112358, "hello foo A");
+    }
+
+    @RNamed(FOO_DATA_B)
+    public FooData pickFooDataB(){
+        return new FooData(11235813, "hello foo B");
+    }
+
+    public FooData pickFooDataNoNamed(){
+        return new FooData(11235813, "hello foo no named");
     }
 }
 ```
@@ -48,22 +76,30 @@ public class MainModule{
 - Not only Activity injection, you can inject everywhere, such as Presenter:
 
 ```java
-@Module(moduleClazz = MainPresenterModule.class)
+@RModule(moduleClazz = MainPresenterModule.class)
 public class MainPresenter implements IMainPresenter {
+    private static final String TAG = MainPresenter.class.getSimpleName();
+
     private MainViewer viewer;
 
-    @Inject
+    @RInject
     PrefsHelper prefsHelper;
 
-    @Inject
+    @RInject
     List<FooData> testData;
 
     public MainPresenter(MainViewer viewer) {
         this.viewer = viewer;
         MainPresenter_Rapier.create().inject(new MainPresenterModule(), this);
-
         Log.i(TAG, "testData: " + testData);
+    }
 
+    @Override
+    public void saveFooData(FooData fooData) {
+        prefsHelper.putInt(FooData.KEY_DATA_ID, fooData.getDataId())
+                .putString(FooData.KEY_DATA_CONTENT, fooData.getDataContent())
+                .commit();
+        viewer.toast(fooData.getDataContent() + " saved!");
     }
 }
 ```
