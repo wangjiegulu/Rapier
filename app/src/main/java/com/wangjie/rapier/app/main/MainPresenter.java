@@ -1,8 +1,9 @@
 package com.wangjie.rapier.app.main;
 
 import android.util.Log;
-import com.wangjie.rapier.api.di.annotation.RModule;
 import com.wangjie.rapier.api.di.annotation.RInject;
+import com.wangjie.rapier.api.di.annotation.RModule;
+import com.wangjie.rapier.api.di.core.RLazy;
 import com.wangjie.rapier.app.main.module.MainPresenterModule;
 import com.wangjie.rapier.app.model.FooData;
 import com.wangjie.rapier.app.prefs.PrefsHelper;
@@ -21,7 +22,7 @@ public class MainPresenter implements IMainPresenter {
     private MainViewer viewer;
 
     @RInject
-    PrefsHelper prefsHelper;
+    RLazy<PrefsHelper> prefsHelperLazy = new RLazy<>();
 
     @RInject
     List<FooData> testData;
@@ -36,7 +37,7 @@ public class MainPresenter implements IMainPresenter {
 
     @Override
     public void saveFooData(FooData fooData) {
-        prefsHelper.putInt(FooData.KEY_DATA_ID, fooData.getDataId())
+        prefsHelperLazy.get().putInt(FooData.KEY_DATA_ID, fooData.getDataId())
                 .putString(FooData.KEY_DATA_CONTENT, fooData.getDataContent())
                 .commit();
         viewer.toast(fooData.getDataContent() + " saved!");

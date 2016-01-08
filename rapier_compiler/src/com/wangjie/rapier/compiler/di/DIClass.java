@@ -21,7 +21,7 @@ final public class DIClass {
     private String targetPackage;
     private Element moduleEle;
 
-    private final List<DIField> injectFieldList = new ArrayList<>();
+    private final List<AbstractDIField> injectFieldList = new ArrayList<>();
 
     public Element getModuleEle() {
         return moduleEle;
@@ -31,7 +31,7 @@ final public class DIClass {
         this.moduleEle = moduleEle;
     }
 
-    public List<DIField> getInjectFieldList() {
+    public List<AbstractDIField> getInjectFieldList() {
         return injectFieldList;
     }
 
@@ -88,15 +88,16 @@ final public class DIClass {
         MethodSpec.Builder injectMethodBuilder = MethodSpec.methodBuilder(METHOD_NAME_INJECT)
                 .addModifiers(Modifier.PUBLIC)
                 .returns(void.class)
-                .addParameter(moduleClassName, PARAM_NAME_MODULE)
+                .addParameter(moduleClassName, PARAM_NAME_MODULE, Modifier.FINAL)
                 .addParameter(sourceClassName, sourceArg0)
                 .beginControlFlow("if(null == module)")
                 .addStatement("throw new $T(\"Module of \" + " + sourceArg0 + " + \" can not be null!\")", NullPointerException.class)
                 .endControlFlow();
 
         if (!injectFieldList.isEmpty()) {
-            for (DIField field : injectFieldList) {
-                injectMethodBuilder.addStatement(sourceArg0 + "." + field.getFieldEle().toString() + " = module." + field.getInjectMethodEle());
+            for (AbstractDIField field : injectFieldList) {
+//                injectMethodBuilder.addStatement(sourceArg0 + "." + field.getFieldEle().toString() + " = module." + field.getInjectMethodEle());
+                field.brewJavaStatementInject(injectMethodBuilder, sourceArg0);
             }
         }
 

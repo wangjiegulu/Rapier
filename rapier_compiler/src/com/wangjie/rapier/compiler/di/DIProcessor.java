@@ -5,6 +5,7 @@ import com.google.auto.service.AutoService;
 import com.wangjie.rapier.api.di.annotation.RInject;
 import com.wangjie.rapier.api.di.annotation.RModule;
 import com.wangjie.rapier.api.di.annotation.RNamed;
+import com.wangjie.rapier.api.di.core.RLazy;
 import com.wangjie.rapier.compiler.base.BaseAbstractProcessor;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -51,53 +52,81 @@ public class DIProcessor extends BaseAbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
 
-//        try{
+        try {
 
-        // Get all elements that annotated with special annotation.
-        for (Element ele : roundEnv.getElementsAnnotatedWith(RModule.class)) {
+            // Get all elements that annotated with special annotation.
+            for (Element ele : roundEnv.getElementsAnnotatedWith(RModule.class)) {
 
-            DIClass diClass = getDIClazzSafe(ele);
+                DIClass diClass = getDIClazzSafe(ele);
 
-            TypeElement typeElement = MoreElements.asType(ele);
-            String packageName = typeElement.getEnclosingElement().toString();
+                TypeElement typeElement = MoreElements.asType(ele);
+                String packageName = typeElement.getEnclosingElement().toString();
 
-            diClass.setTargetPackage(packageName);
-            diClass.setSourceClassSimpleName(typeElement.getSimpleName().toString());
+                diClass.setTargetPackage(packageName);
+                diClass.setSourceClassSimpleName(typeElement.getSimpleName().toString());
 
-            TypeMirror moduleTypeMirror = getModuleTypeMirror(ele.getAnnotation(RModule.class));
-            Element moduleElement = typeUtils.asElement(moduleTypeMirror);
+                TypeMirror moduleTypeMirror = getModuleTypeMirror(ele.getAnnotation(RModule.class));
+                Element moduleElement = typeUtils.asElement(moduleTypeMirror);
 
-            diClass.setModuleEle(moduleElement);
-        }
-
-
-        for (Element ele : roundEnv.getElementsAnnotatedWith(RInject.class)) {
-            DIClass diClass = getDIClazzSafe(ele);
-            List<Element> methodElementResults = searchMethodElementsByInjectElement(diClass.getModuleEle(), ele);
-            if (0 == methodElementResults.size()) {
-                throw new IllegalArgumentException(getElementOwnerClassName(ele) + "." + ele.getSimpleName() + "[" + typeUtils.erasure(ele.asType()).toString() + "] method in module 0");
-            } else if (methodElementResults.size() > 1) {
-                throw new IllegalArgumentException(getElementOwnerClassName(ele) + "." + ele.getSimpleName() + "[" + typeUtils.erasure(ele.asType()).toString() + "] methods in module more than 1");
-            } else {
-                diClass.getInjectFieldList().add(new DIField(methodElementResults.get(0), ele));
+                diClass.setModuleEle(moduleElement);
             }
-        }
-
-        logger("clazzProcessMapper: \n" + clazzProcessMapper);
-//        }catch(Throwable throwable){
-//            logger(throwable.getMessage());
-//        }
 
 
-        for (Map.Entry<String, DIClass> entry : clazzProcessMapper.entrySet()) {
-            try {
-                entry.getValue().brewJava().writeTo(filer);
-            } catch (IOException e) {
-                logger(e.getMessage());
+            for (Element ele : roundEnv.getElementsAnnotatedWith(RInject.class)) {
+                DIClass diClass = getDIClazzSafe(ele);
+                AbstractDIField diField = parseDIFieldElement(ele);
+                logger("diField: " + diField);
+
+                List<Element> methodElementResults = searchMethodElementsByInjectElement(diClass.getModuleEle(), diField, ele.getAnnotation(RNamed.class));
+                if (0 == methodElementResults.size()) {
+                    throw new IllegalArgumentException(/*getElementOwnerClassName(ele) + "." + ele.getSimpleName() + */"[" + typeUtils.erasure(ele.asType()).toString() + "] method in module 0");
+                } else if (methodElementResults.size() > 1) {
+                    throw new IllegalArgumentException(/*getElementOwnerClassName(ele) + "." + ele.getSimpleName() + */"[" + typeUtils.erasure(ele.asType()).toString() + "] methods in module more than 1");
+                } else {
+                    diField.setInjectMethodEle(methodElementResults.get(0));
+                    diClass.getInjectFieldList().add(diField);
+                }
             }
+
+            logger("clazzProcessMapper: \n" + clazzProcessMapper);
+
+            for (Map.Entry<String, DIClass> entry : clazzProcessMapper.entrySet()) {
+                try {
+                    entry.getValue().brewJava().writeTo(filer);
+                } catch (IOException e) {
+                    logger(e.getMessage());
+                }
+            }
+        } catch (Throwable throwable) {
+            loggerE(throwable);
+            throw throwable;
         }
         return true;
     }
+
+    private AbstractDIField parseDIFieldElement(Element element) {
+        String fieldModeName = element.asType().toString();
+
+        AbstractDIField field;
+        // Generic type, maybe RLazy
+        if (fieldModeName.contains("<")) {
+            String fieldModeNameWithoutGeneric = fieldModeName.substring(0, fieldModeName.indexOf("<"));
+            // is RLazy
+            if (fieldModeNameWithoutGeneric.equals(RLazy.class.getCanonicalName())) {
+                String realFieldClassName = fieldModeName.substring(fieldModeName.indexOf("<") + 1, fieldModeName.indexOf(">"));
+                field = DILazyField.create().setRealFieldClassName(realFieldClassName);
+                logger(">>>>>>>>realFieldClassName: " + realFieldClassName);
+            } else {
+                field = DINormalField.create();
+            }
+        } else {
+            field = DINormalField.create();
+        }
+
+        field.setFieldEle(element);
+        return field;
+    }
+
 
     private DIClass getDIClazzSafe(Element ele) {
         String clazzName = getElementOwnerClassName(ele);
@@ -134,20 +163,21 @@ public class DIProcessor extends BaseAbstractProcessor {
      * Search all methods that with special return type and @RNamed.
      *
      * @param moduleClassElement
-     * @param injectElement
+     * @param fieldForInject
      * @return
      */
-    private List<Element> searchMethodElementsByInjectElement(Element moduleClassElement, Element injectElement) {
+    private List<Element> searchMethodElementsByInjectElement(Element moduleClassElement, AbstractDIField fieldForInject, RNamed namedOfFieldForInject) {
         List<Element> resultMethodElementList = new ArrayList<>();
         if (moduleClassElement.getKind() != ElementKind.CLASS) {
             throw new IllegalArgumentException("ElementKind of " + moduleClassElement + " is not ElementKind.CLASS");
         }
 
-        String exceptInjectType = injectElement.asType().toString();
-        RNamed injectEleNamedAnno = injectElement.getAnnotation(RNamed.class);
+        String exceptInjectType = fieldForInject.getRealFieldClassNameForInject();
+        logger("[searchMethodElementsByInjectElement]exceptInjectType: " + exceptInjectType);
+//        RNamed injectEleNamedAnno = injectElement.getAnnotation(RNamed.class);
 
         // set exceptInjectType to injectElement's injectElementQualifierName if @named annotation had not set.
-        String injectEleQualifierName = null == injectEleNamedAnno ? exceptInjectType : injectEleNamedAnno.value();
+        String injectEleQualifierName = null == namedOfFieldForInject ? exceptInjectType : namedOfFieldForInject.value();
 
         for (Element methodEle : MoreElements.asType(moduleClassElement).getEnclosedElements()) {
             if (ElementKind.METHOD != methodEle.getKind()) {

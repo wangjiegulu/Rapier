@@ -1,5 +1,7 @@
 package com.wangjie.rapier.compiler.base;
 
+import com.wangjie.rapier.compiler.util.LogUtil;
+
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -36,6 +38,10 @@ public abstract class BaseAbstractProcessor extends AbstractProcessor {
     @Override
     public SourceVersion getSupportedSourceVersion() {
         return SourceVersion.latestSupported();
+    }
+
+    protected void loggerE(Throwable throwable) {
+        logger("[ERROR]" + LogUtil.transformStackTrace(throwable));
     }
 
     protected void logger(String str) {
