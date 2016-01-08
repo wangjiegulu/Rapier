@@ -2,13 +2,14 @@ package com.wangjie.rapier.compiler.di;
 
 import com.google.auto.common.MoreElements;
 import com.google.auto.service.AutoService;
-import com.wangjie.rapier.api.di.annotation.Module;
+import com.wangjie.rapier.api.di.annotation.RInject;
+import com.wangjie.rapier.api.di.annotation.RModule;
+import com.wangjie.rapier.api.di.annotation.RNamed;
 import com.wangjie.rapier.compiler.base.BaseAbstractProcessor;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
-import javax.inject.Inject;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
@@ -37,54 +38,48 @@ public class DIProcessor extends BaseAbstractProcessor {
     public Set<String> getSupportedAnnotationTypes() {
         Set<String> supportedTypesSet = new HashSet<>();
 
-        supportedTypesSet.add(Module.class.getCanonicalName());
-        supportedTypesSet.add(Inject.class.getCanonicalName());
+        supportedTypesSet.add(RModule.class.getCanonicalName());
+        supportedTypesSet.add(RInject.class.getCanonicalName());
+//        supportedTypesSet.add(RNamed.class.getCanonicalName());
         // add more annotations...
 
         return supportedTypesSet;
     }
 
-    private final HashMap<String, DIClazz> clazzProcessMapper = new HashMap<>();
+    private final HashMap<String, DIClass> clazzProcessMapper = new HashMap<>();
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
 
 //        try{
 
-        // 获得被该注解声明的元素
-        for (Element ele : roundEnv.getElementsAnnotatedWith(Module.class)) {
+        // Get all elements that annotated with special annotation.
+        for (Element ele : roundEnv.getElementsAnnotatedWith(RModule.class)) {
 
-            DIClazz diClazz = getDIClazzSafe(ele);
+            DIClass diClass = getDIClazzSafe(ele);
 
             TypeElement typeElement = MoreElements.asType(ele);
             String packageName = typeElement.getEnclosingElement().toString();
 
-            diClazz.setTargetPackage(packageName);
-            diClazz.setSourceClassSimpleName(typeElement.getSimpleName().toString());
+            diClass.setTargetPackage(packageName);
+            diClass.setSourceClassSimpleName(typeElement.getSimpleName().toString());
 
-            TypeMirror moduleTypeMirror = getModuleTypeMirror(ele.getAnnotation(Module.class));
+            TypeMirror moduleTypeMirror = getModuleTypeMirror(ele.getAnnotation(RModule.class));
             Element moduleElement = typeUtils.asElement(moduleTypeMirror);
 
-            for (Element ee : moduleElement.getEnclosedElements()) {
-                logger("-> ee: " + ee);
-
-            }
-
-//            logger("moduleClazzName: " + moduleTypeMirror.toString());
-            diClazz.setModuleElement(moduleElement);
+            diClass.setModuleEle(moduleElement);
         }
 
 
-        for (Element ele : roundEnv.getElementsAnnotatedWith(Inject.class)) {
-            DIClazz diClazz = getDIClazzSafe(ele);
-//            logger("diClazz.getModuleElement(): " + diClazz.getModuleElement());
-            List<Element> methodElementResults = searchMethodElement(diClazz.getModuleElement(), ele.asType());
+        for (Element ele : roundEnv.getElementsAnnotatedWith(RInject.class)) {
+            DIClass diClass = getDIClazzSafe(ele);
+            List<Element> methodElementResults = searchMethodElementsByInjectElement(diClass.getModuleEle(), ele);
             if (0 == methodElementResults.size()) {
-                throw new IllegalArgumentException(typeUtils.erasure(ele.asType()).toString() + " method 0");
+                throw new IllegalArgumentException(getElementOwnerClassName(ele) + "." + ele.getSimpleName() + "[" + typeUtils.erasure(ele.asType()).toString() + "] method in module 0");
             } else if (methodElementResults.size() > 1) {
-                throw new IllegalArgumentException(typeUtils.erasure(ele.asType()).toString() + " method more than 1");
+                throw new IllegalArgumentException(getElementOwnerClassName(ele) + "." + ele.getSimpleName() + "[" + typeUtils.erasure(ele.asType()).toString() + "] methods in module more than 1");
             } else {
-                diClazz.getInjectFieldList().add(new DIField(methodElementResults.get(0), ele.toString()));
+                diClass.getInjectFieldList().add(new DIField(methodElementResults.get(0), ele));
             }
         }
 
@@ -94,7 +89,7 @@ public class DIProcessor extends BaseAbstractProcessor {
 //        }
 
 
-        for (Map.Entry<String, DIClazz> entry : clazzProcessMapper.entrySet()) {
+        for (Map.Entry<String, DIClass> entry : clazzProcessMapper.entrySet()) {
             try {
                 entry.getValue().brewJava().writeTo(filer);
             } catch (IOException e) {
@@ -104,16 +99,16 @@ public class DIProcessor extends BaseAbstractProcessor {
         return true;
     }
 
-    private DIClazz getDIClazzSafe(Element ele) {
+    private DIClass getDIClazzSafe(Element ele) {
         String clazzName = getElementOwnerClassName(ele);
 
-        DIClazz diClazz = clazzProcessMapper.get(clazzName);
-        if (null == diClazz) {
-            diClazz = new DIClazz();
+        DIClass diClass = clazzProcessMapper.get(clazzName);
+        if (null == diClass) {
+            diClass = new DIClass();
             logger("---> getDIClazzSafe create key...: " + clazzName);
-            clazzProcessMapper.put(clazzName, diClazz);
+            clazzProcessMapper.put(clazzName, diClass);
         }
-        return diClazz;
+        return diClass;
     }
 
     /**
@@ -136,26 +131,39 @@ public class DIProcessor extends BaseAbstractProcessor {
     }
 
     /**
-     * Search all methods that with special return type.
+     * Search all methods that with special return type and @RNamed.
      *
-     * @param clazzElement
-     * @param expectReturnType
+     * @param moduleClassElement
+     * @param injectElement
      * @return
      */
-    private List<Element> searchMethodElement(Element clazzElement, TypeMirror expectReturnType) {
+    private List<Element> searchMethodElementsByInjectElement(Element moduleClassElement, Element injectElement) {
         List<Element> resultMethodElementList = new ArrayList<>();
-        if (clazzElement.getKind() != ElementKind.CLASS) {
-            throw new IllegalArgumentException("ElementKind of " + clazzElement + " is not ElementKind.CLASS");
+        if (moduleClassElement.getKind() != ElementKind.CLASS) {
+            throw new IllegalArgumentException("ElementKind of " + moduleClassElement + " is not ElementKind.CLASS");
         }
-        for (Element ee : MoreElements.asType(clazzElement).getEnclosedElements()) {
-            if (ElementKind.METHOD != ee.getKind()) {
+
+        String exceptInjectType = injectElement.asType().toString();
+        RNamed injectEleNamedAnno = injectElement.getAnnotation(RNamed.class);
+
+        // set exceptInjectType to injectElement's injectElementQualifierName if @named annotation had not set.
+        String injectEleQualifierName = null == injectEleNamedAnno ? exceptInjectType : injectEleNamedAnno.value();
+
+        for (Element methodEle : MoreElements.asType(moduleClassElement).getEnclosedElements()) {
+            if (ElementKind.METHOD != methodEle.getKind()) {
                 continue;
             }
-            // Same return type.
-            // todo: add alias to support multi same type
-            if (MoreElements.asExecutable(ee).getReturnType().toString()
-                    .equals(expectReturnType.toString())) {
-                resultMethodElementList.add(ee);
+
+            // Match the type of method in module as same as the type of injectElement.
+            String methodReturnType = MoreElements.asExecutable(methodEle).getReturnType().toString();
+            RNamed methodEleNamedAnno = methodEle.getAnnotation(RNamed.class);
+            String methodEleQualifierName = null == methodEleNamedAnno ? methodReturnType : methodEleNamedAnno.value();
+
+            if (methodReturnType.equals(exceptInjectType) // Same type
+                    &&
+                    methodEleQualifierName.equals(injectEleQualifierName) // Same named
+                    ) {
+                resultMethodElementList.add(methodEle);
             }
         }
         return resultMethodElementList;
@@ -169,7 +177,7 @@ public class DIProcessor extends BaseAbstractProcessor {
      * @param annotation
      * @return
      */
-    private static TypeMirror getModuleTypeMirror(Module annotation) {
+    private static TypeMirror getModuleTypeMirror(RModule annotation) {
         try {
             annotation.moduleClazz(); // this should throw
         } catch (MirroredTypeException mte) {

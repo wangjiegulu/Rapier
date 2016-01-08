@@ -40,19 +40,22 @@ public abstract class BaseAbstractProcessor extends AbstractProcessor {
 
     protected void logger(String str) {
         String loggerDate = System.identityHashCode(this) + "...[" + LOGGER_DATE_FORMAT.format(new Date()) + "]";
-        String appendStr = loggerDate + ": " + str;
+        String log = loggerDate + ": " + str;
+        processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, log);
+        writeToDisk(log);
+    }
+
+    private void writeToDisk(String log) {
         try {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, appendStr);
             File logFile = new File("/Users/wangjie/Desktop/za/test/processor_log.txt");
             if (!logFile.exists()) {
                 logFile.createNewFile();
             }
             FileWriter fw = new FileWriter(logFile, true);
-            fw.write(appendStr + "\n\n");
+            fw.write(log + "\n\n");
             fw.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-
 }

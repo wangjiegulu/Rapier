@@ -49,6 +49,5 @@ dependencies {
 
     compile project(':rapier_api')
     apt project(':rapier_compiler')
-    provided 'javax.inject:javax.inject:1'
 
 }

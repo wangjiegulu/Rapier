@@ -8,35 +8,27 @@ import javax.lang.model.element.Element;
  * Date: 1/7/16.
  */
 public class DIField {
-    private Element injectMethod;
-    private String fieldName;
+    private Element injectMethodEle;
+    private Element fieldEle;
 
-    public DIField(Element injectMethod, String fieldName) {
-        this.injectMethod = injectMethod;
-        this.fieldName = fieldName;
+    public DIField(Element injectMethodEle, Element fieldEle) {
+        this.injectMethodEle = injectMethodEle;
+        this.fieldEle = fieldEle;
     }
 
-    public Element getInjectMethod() {
-        return injectMethod;
+    public Element getInjectMethodEle() {
+        return injectMethodEle;
     }
 
-    public void setInjectMethod(Element injectMethod) {
-        this.injectMethod = injectMethod;
+    public void setInjectMethodEle(Element injectMethodEle) {
+        this.injectMethodEle = injectMethodEle;
     }
 
-    public String getFieldName() {
-        return fieldName;
+    public Element getFieldEle() {
+        return fieldEle;
     }
 
-    public void setFieldName(String fieldName) {
-        this.fieldName = fieldName;
-    }
-
-    @Override
-    public String toString() {
-        return "DIField{" +
-                "injectMethod=" + injectMethod +
-                ", fieldName='" + fieldName + '\'' +
-                '}';
+    public void setFieldEle(Element fieldEle) {
+        this.fieldEle = fieldEle;
     }
 }

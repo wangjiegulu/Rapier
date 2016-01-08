@@ -2,31 +2,40 @@ package com.wangjie.rapier.app.main;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
-import com.wangjie.rapier.api.di.annotation.Module;
+import com.wangjie.rapier.api.di.annotation.RInject;
+import com.wangjie.rapier.api.di.annotation.RModule;
+import com.wangjie.rapier.api.di.annotation.RNamed;
 import com.wangjie.rapier.app.R;
 import com.wangjie.rapier.app.main.module.MainModule;
 import com.wangjie.rapier.app.model.FooData;
 
-import javax.inject.Inject;
 import java.util.Random;
 
-@Module(moduleClazz = MainModule.class)
+@RModule(moduleClazz = MainModule.class)
 public class MainActivity extends AppCompatActivity implements MainViewer, View.OnClickListener {
+    private static final String TAG = MainActivity.class.getSimpleName();
 
-    @Inject
+    @RInject
     IMainPresenter presenter;
     //    Rapier<IMainPresenter> presenterRapier = new Rapier<>();
     private Random random;
 
-//    @AIView(R.id.activity_main_save_foo_data_btn)
-//    Button button;
+    @RInject
+    @RNamed(MainModule.FOO_DATA_A)
+    FooData fooDataA;
 
-    @Inject
-    FooData fooData;
+    @RInject
+    @RNamed(MainModule.FOO_DATA_B)
+    FooData fooDataB;
+
+    @RInject
+//    @RNamed("error named")
+    FooData fooDataNoNamed;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,7 +52,9 @@ public class MainActivity extends AppCompatActivity implements MainViewer, View.
 
         findViewById(R.id.activity_main_save_foo_data_btn).setOnClickListener(this);
 
-        toast("->" + fooData.getDataContent());
+        Log.i(TAG, "fooDataA: " + fooDataA);
+        Log.i(TAG, "fooDataB: " + fooDataB);
+        Log.i(TAG, "fooDataNoNamed: " + fooDataNoNamed);
 
     }
 

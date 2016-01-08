@@ -10,6 +10,6 @@ import java.lang.annotation.Target;
  */
 //@Retention(RetentionPolicy.CLASS)
 @Target(ElementType.FIELD)
-public @interface AIView {
+public @interface RView {
     int value() default -1; // 控件resId
 }

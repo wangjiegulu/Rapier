@@ -1,12 +1,12 @@
 package com.wangjie.rapier.app.main;
 
 import android.util.Log;
-import com.wangjie.rapier.api.di.annotation.Module;
+import com.wangjie.rapier.api.di.annotation.RModule;
+import com.wangjie.rapier.api.di.annotation.RInject;
 import com.wangjie.rapier.app.main.module.MainPresenterModule;
 import com.wangjie.rapier.app.model.FooData;
 import com.wangjie.rapier.app.prefs.PrefsHelper;
 
-import javax.inject.Inject;
 import java.util.List;
 
 /**
@@ -14,16 +14,16 @@ import java.util.List;
  * Email: tiantian.china.2@gmail.com
  * Date: 1/5/16.
  */
-@Module(moduleClazz = MainPresenterModule.class)
+@RModule(moduleClazz = MainPresenterModule.class)
 public class MainPresenter implements IMainPresenter {
     private static final String TAG = MainPresenter.class.getSimpleName();
 
     private MainViewer viewer;
 
-    @Inject
+    @RInject
     PrefsHelper prefsHelper;
 
-    @Inject
+    @RInject
     List<FooData> testData;
 
     public MainPresenter(MainViewer viewer) {

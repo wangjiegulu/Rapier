@@ -11,7 +11,6 @@ import java.lang.annotation.Target;
  * Date: 1/6/16.
  */
 @Retention(RetentionPolicy.CLASS)
-@Target(ElementType.TYPE)
-public @interface Module {
-    Class moduleClazz();
+@Target(ElementType.FIELD)
+public @interface RInject {
 }

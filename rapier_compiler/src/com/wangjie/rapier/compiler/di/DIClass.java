@@ -16,19 +16,19 @@ import java.util.List;
  * Email: tiantian.china.2@gmail.com
  * Date: 1/7/16.
  */
-final public class DIClazz {
+final public class DIClass {
     private String sourceClassSimpleName;
     private String targetPackage;
-    private Element moduleElement;
+    private Element moduleEle;
 
     private final List<DIField> injectFieldList = new ArrayList<>();
 
-    public Element getModuleElement() {
-        return moduleElement;
+    public Element getModuleEle() {
+        return moduleEle;
     }
 
-    public void setModuleElement(Element moduleElement) {
-        this.moduleElement = moduleElement;
+    public void setModuleEle(Element moduleEle) {
+        this.moduleEle = moduleEle;
     }
 
     public List<DIField> getInjectFieldList() {
@@ -56,34 +56,39 @@ final public class DIClazz {
     public String toString() {
         return "DIClazz{" +
                 "targetPackage='" + targetPackage + '\'' +
-                ", moduleElement=" + moduleElement +
+                ", moduleEle=" + moduleEle +
                 ", injectFieldList=" + injectFieldList +
                 '}';
     }
 
+    public static final String METHOD_NAME_RAPIER_STAFF = "_Rapier";
+    public static final String METHOD_NAME_CREATE = "create";
+    public static final String METHOD_NAME_INJECT = "inject";
+    public static final String PARAM_NAME_MODULE = "module";
+
     public JavaFile brewJava() {
-        String targetClassSimpleName = sourceClassSimpleName + "_Rapier";
+        String targetClassSimpleName = sourceClassSimpleName + METHOD_NAME_RAPIER_STAFF;
         TypeSpec.Builder result = TypeSpec.classBuilder(targetClassSimpleName)
                 .addModifiers(Modifier.PUBLIC);
 
 
         ClassName selfClassName = ClassName.get(targetPackage, targetClassSimpleName);
 
-        MethodSpec createMethod = MethodSpec.methodBuilder("create")
+        MethodSpec createMethod = MethodSpec.methodBuilder(METHOD_NAME_CREATE)
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(selfClassName)
                 .addStatement("return new $T()", selfClassName)
                 .build();
         result.addMethod(createMethod);
 
-        ClassName moduleClassName = ClassName.get(MoreElements.asType(moduleElement).getEnclosingElement().toString(), moduleElement.getSimpleName().toString());
+        ClassName moduleClassName = ClassName.get(MoreElements.asType(moduleEle).getEnclosingElement().toString(), moduleEle.getSimpleName().toString());
         ClassName sourceClassName = ClassName.get(targetPackage, sourceClassSimpleName);
 
         String sourceArg0 = sourceClassSimpleName.substring(0, 1).toLowerCase() + sourceClassSimpleName.substring(1);
-        MethodSpec.Builder injectMethodBuilder = MethodSpec.methodBuilder("inject")
+        MethodSpec.Builder injectMethodBuilder = MethodSpec.methodBuilder(METHOD_NAME_INJECT)
                 .addModifiers(Modifier.PUBLIC)
                 .returns(void.class)
-                .addParameter(moduleClassName, "module")
+                .addParameter(moduleClassName, PARAM_NAME_MODULE)
                 .addParameter(sourceClassName, sourceArg0)
                 .beginControlFlow("if(null == module)")
                 .addStatement("throw new $T(\"Module of \" + " + sourceArg0 + " + \" can not be null!\")", NullPointerException.class)
@@ -91,7 +96,7 @@ final public class DIClazz {
 
         if (!injectFieldList.isEmpty()) {
             for (DIField field : injectFieldList) {
-                injectMethodBuilder.addStatement(sourceArg0 + "." + field.getFieldName() + " = module." + field.getInjectMethod());
+                injectMethodBuilder.addStatement(sourceArg0 + "." + field.getFieldEle().toString() + " = module." + field.getInjectMethodEle());
             }
         }
 
