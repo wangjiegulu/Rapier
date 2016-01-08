@@ -19,10 +19,6 @@ public class DILazyField extends AbstractDIField {
 
     /**
      * The real field in RLazy.
-     * <code>
-     *
-     * @Inject RLazy&lt;Hello&gt;
-     * </code>
      */
     private String realFieldClassName;
 

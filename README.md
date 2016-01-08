@@ -1,9 +1,10 @@
 # Rapier
 Dependency injection Framework for Android. No reflection, Generate java code in compile time, and Inject everywhere.
 
-> __DO NOT use it in any production project until version 1.0 releases and publishes to maven central.__
+> __DO NOT use it in any production project until version 1.0 release and publishes to maven central.__
 
 - Special Module Class in `@RModule` annotation, and inject objects use `@RInject` annotation.
+- You can use the `@RNamed` specify which method should provide data to it.
 
 ```java
 @RModule(moduleClazz = MainModule.class)
@@ -73,7 +74,8 @@ public class MainModule{
 }
 ```
 
-- Not only Activity injection, you can inject everywhere, such as Presenter:
+- Not only Activity injection, you also can inject everywhere, such as Presenter.
+- `RLazy` mode could help you improve performance when the object takes a long time to initialize.
 
 ```java
 @RModule(moduleClazz = MainPresenterModule.class)
@@ -83,7 +85,7 @@ public class MainPresenter implements IMainPresenter {
     private MainViewer viewer;
 
     @RInject
-    PrefsHelper prefsHelper;
+    RLazy<PrefsHelper> prefsHelperLazy = new RLazy<>();
 
     @RInject
     List<FooData> testData;
@@ -96,7 +98,7 @@ public class MainPresenter implements IMainPresenter {
 
     @Override
     public void saveFooData(FooData fooData) {
-        prefsHelper.putInt(FooData.KEY_DATA_ID, fooData.getDataId())
+        prefsHelperLazy.get().putInt(FooData.KEY_DATA_ID, fooData.getDataId())
                 .putString(FooData.KEY_DATA_CONTENT, fooData.getDataContent())
                 .commit();
         viewer.toast(fooData.getDataContent() + " saved!");

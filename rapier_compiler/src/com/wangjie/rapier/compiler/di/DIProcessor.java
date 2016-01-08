@@ -104,6 +104,13 @@ public class DIProcessor extends BaseAbstractProcessor {
         return true;
     }
 
+    /**
+     * Parse DIField
+     * {@link DINormalField} or {@link DILazyField}
+     *
+     * @param element
+     * @return
+     */
     private AbstractDIField parseDIFieldElement(Element element) {
         String fieldModeName = element.asType().toString();
 
@@ -116,7 +123,7 @@ public class DIProcessor extends BaseAbstractProcessor {
                 String realFieldClassName = fieldModeName.substring(fieldModeName.indexOf("<") + 1, fieldModeName.indexOf(">"));
                 field = DILazyField.create().setRealFieldClassName(realFieldClassName);
                 logger(">>>>>>>>realFieldClassName: " + realFieldClassName);
-            } else {
+            } else { // not RLazy
                 field = DINormalField.create();
             }
         } else {
@@ -134,7 +141,6 @@ public class DIProcessor extends BaseAbstractProcessor {
         DIClass diClass = clazzProcessMapper.get(clazzName);
         if (null == diClass) {
             diClass = new DIClass();
-            logger("---> getDIClazzSafe create key...: " + clazzName);
             clazzProcessMapper.put(clazzName, diClass);
         }
         return diClass;
