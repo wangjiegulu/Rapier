@@ -2,11 +2,21 @@ package com.wangjie.rapier.compiler.di;
 
 import com.google.auto.common.MoreElements;
 import com.google.auto.service.AutoService;
+
 import com.wangjie.rapier.api.di.annotation.RInject;
-import com.wangjie.rapier.api.di.annotation.RModule;
 import com.wangjie.rapier.api.di.annotation.RNamed;
+import com.wangjie.rapier.api.di.annotation.RModule;
 import com.wangjie.rapier.api.di.core.RLazy;
 import com.wangjie.rapier.compiler.base.BaseAbstractProcessor;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
@@ -18,8 +28,6 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import java.io.IOException;
-import java.util.*;
 
 /**
  * Error: Attempt to access Class object for TypeMirror...
@@ -49,18 +57,18 @@ public class DIProcessor extends BaseAbstractProcessor {
         return supportedTypesSet;
     }
 
-    private final HashMap<String, DIClass> clazzProcessMapper = new HashMap<>();
-
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         long start = System.currentTimeMillis();
         logger("[process]annotations: " + Arrays.toString(annotations.toArray()) + ", roundEnv: " + roundEnv);
         try {
 
+            HashMap<String, DIClass> clazzProcessMapper = new HashMap<>();
+
             // Get all elements that annotated with special annotation.
             for (Element ele : roundEnv.getElementsAnnotatedWith(RModule.class)) {
 
-                DIClass diClass = getDIClazzSafe(ele);
+                DIClass diClass = getDIClazzSafe(ele, clazzProcessMapper);
 
                 TypeElement typeElement = MoreElements.asType(ele);
                 String packageName = typeElement.getEnclosingElement().toString();
@@ -76,7 +84,7 @@ public class DIProcessor extends BaseAbstractProcessor {
 
 
             for (Element ele : roundEnv.getElementsAnnotatedWith(RInject.class)) {
-                DIClass diClass = getDIClazzSafe(ele);
+                DIClass diClass = getDIClazzSafe(ele, clazzProcessMapper);
                 AbstractDIField diField = parseDIFieldElement(ele);
                 logger("diField: " + diField);
 
@@ -92,14 +100,12 @@ public class DIProcessor extends BaseAbstractProcessor {
             }
 
 
-            if (roundEnv.processingOver()) {
-                logger("clazzProcessMapper: \n" + clazzProcessMapper);
-                for (Map.Entry<String, DIClass> entry : clazzProcessMapper.entrySet()) {
-                    try {
-                        entry.getValue().brewJava().writeTo(filer);
-                    } catch (IOException e) {
-                        logger(e.getMessage());
-                    }
+            logger("clazzProcessMapper: \n" + clazzProcessMapper);
+            for (Map.Entry<String, DIClass> entry : clazzProcessMapper.entrySet()) {
+                try {
+                    entry.getValue().brewJava().writeTo(filer);
+                } catch (IOException e) {
+                    logger(e.getMessage());
                 }
             }
         } catch (Throwable throwable) {
@@ -115,9 +121,6 @@ public class DIProcessor extends BaseAbstractProcessor {
     /**
      * Parse DIField
      * {@link DINormalField} or {@link DILazyField}
-     *
-     * @param element
-     * @return
      */
     private AbstractDIField parseDIFieldElement(Element element) {
         String fieldModeName = element.asType().toString();
@@ -143,7 +146,7 @@ public class DIProcessor extends BaseAbstractProcessor {
     }
 
 
-    private DIClass getDIClazzSafe(Element ele) {
+    private DIClass getDIClazzSafe(Element ele, HashMap<String, DIClass> clazzProcessMapper) {
         String clazzName = getElementOwnerClassName(ele);
 
         DIClass diClass = clazzProcessMapper.get(clazzName);
@@ -156,9 +159,6 @@ public class DIProcessor extends BaseAbstractProcessor {
 
     /**
      * Key of the clazzProcessMapper items.
-     *
-     * @param element
-     * @return
      */
     private String getElementOwnerClassName(Element element) {
         String clazzName;
@@ -175,10 +175,6 @@ public class DIProcessor extends BaseAbstractProcessor {
 
     /**
      * Search all methods that with special return type and @RNamed.
-     *
-     * @param moduleClassElement
-     * @param fieldForInject
-     * @return
      */
     private List<Element> searchMethodElementsByInjectElement(Element moduleClassElement, AbstractDIField fieldForInject, RNamed namedOfFieldForInject) {
         List<Element> resultMethodElementList = new ArrayList<>();
@@ -229,9 +225,6 @@ public class DIProcessor extends BaseAbstractProcessor {
      * Get the TypeMirror of Class in @Module annotation.
      * Error: Attempt to access Class object for TypeMirror...
      * http://blog.retep.org/2009/02/13/getting-class-values-from-annotations-in-an-annotationprocessor/
-     *
-     * @param annotation
-     * @return
      */
     private static TypeMirror getModuleTypeMirror(RModule annotation) {
         try {
